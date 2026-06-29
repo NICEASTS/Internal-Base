@@ -1,0 +1,101 @@
+{
+  "version": "1.0",
+  "description": "GhostWeave Internal Base - Built-in Lua Scripting API Reference",
+  "note": "This is not a full Lua runtime. It is a custom line-based parser that reads name = value assignments.",
+  "categories": [
+    {
+      "name": "Aimbot",
+      "variables": [
+        {"name": "aim_enabled", "type": "bool", "default": "false", "description": "Master toggle for the aimbot feature."},
+        {"name": "aim_fov", "type": "float", "default": "7.0", "description": "Aimbot field of view radius."},
+        {"name": "aim_smoothing", "type": "float", "default": "0.4", "description": "Aim smoothing factor (0.0 = instant, 1.0 = very slow)."},
+        {"name": "aim_key", "type": "int", "default": "0", "description": "Virtual key code for aimbot activation."},
+        {"name": "aim_hitbox_head", "type": "bool", "default": "true", "description": "Allow targeting the head hitbox."},
+        {"name": "aim_hitbox_neck", "type": "bool", "default": "false", "description": "Allow targeting the neck hitbox."},
+        {"name": "aim_hitbox_chest", "type": "bool", "default": "false", "description": "Allow targeting the chest hitbox."},
+        {"name": "aim_hitbox_stomach", "type": "bool", "default": "false", "description": "Allow targeting the stomach hitbox."},
+        {"name": "aim_hitbox_pelvis", "type": "bool", "default": "false", "description": "Allow targeting the pelvis hitbox."},
+        {"name": "aim_ignore_flash", "type": "bool", "default": "false", "description": "Ignore flashbang blindness when aiming."},
+        {"name": "aim_scope_only", "type": "bool", "default": "false", "description": "Only activate aimbot when scoped (snipers)."},
+        {"name": "aim_draw_fov", "type": "bool", "default": "false", "description": "Draw the aimbot FOV circle on screen."},
+        {"name": "aim_humanize", "type": "bool", "default": "false", "description": "Add humanization curves to aim movement."}
+      ]
+    },
+    {
+      "name": "Triggerbot",
+      "variables": [
+        {"name": "trigger_enabled", "type": "bool", "default": "false", "description": "Master toggle for the triggerbot feature."},
+        {"name": "trigger_delay", "type": "float", "default": "0.0", "description": "Delay in seconds before firing."},
+        {"name": "trigger_fov", "type": "float", "default": "7.0", "description": "Triggerbot activation FOV."},
+        {"name": "trigger_hitbox_head", "type": "bool", "default": "true", "description": "Trigger on head hitbox."},
+        {"name": "trigger_hitbox_neck", "type": "bool", "default": "false", "description": "Trigger on neck hitbox."},
+        {"name": "trigger_hitbox_chest", "type": "bool", "default": "false", "description": "Trigger on chest hitbox."},
+        {"name": "trigger_hitbox_stomach", "type": "bool", "default": "false", "description": "Trigger on stomach hitbox."},
+        {"name": "trigger_hitbox_pelvis", "type": "bool", "default": "false", "description": "Trigger on pelvis hitbox."},
+        {"name": "trigger_ignore_flash", "type": "bool", "default": "false", "description": "Ignore flashbang blindness for triggerbot."},
+        {"name": "trigger_draw_fov", "type": "bool", "default": "false", "description": "Draw the triggerbot FOV circle."}
+      ]
+    },
+    {
+      "name": "ESP",
+      "variables": [
+        {"name": "esp_enabled", "type": "bool", "default": "false", "description": "Master toggle for enemy ESP."},
+        {"name": "esp_box", "type": "bool", "default": "false", "description": "Draw 2D bounding boxes around enemies."},
+        {"name": "esp_skeleton", "type": "bool", "default": "false", "description": "Draw player skeleton lines."},
+        {"name": "esp_health", "type": "bool", "default": "false", "description": "Show health bar or health text."},
+        {"name": "esp_name", "type": "bool", "default": "false", "description": "Show player name tags."},
+        {"name": "esp_weapon", "type": "bool", "default": "false", "description": "Show active weapon name."},
+        {"name": "esp_distance", "type": "bool", "default": "false", "description": "Show distance to target in meters."},
+        {"name": "esp_head", "type": "bool", "default": "false", "description": "Draw head dot or head circle."},
+        {"name": "esp_glow", "type": "bool", "default": "false", "description": "Apply glow outline effect to enemies."}
+      ]
+    },
+    {
+      "name": "Chams",
+      "variables": [
+        {"name": "chams_enabled", "type": "bool", "default": "false", "description": "Master toggle for standard chams."},
+        {"name": "chamsv4_enabled", "type": "bool", "default": "false", "description": "Master toggle for ChamsV4 advanced material system."},
+        {"name": "chamsv4_wallhack", "type": "bool", "default": "true", "description": "Show hidden enemies through walls with chams."},
+        {"name": "chamsv4_players", "type": "bool", "default": "true", "description": "Apply chams to player models."},
+        {"name": "chamsv4_hands", "type": "bool", "default": "false", "description": "Apply chams to viewmodel hands."},
+        {"name": "chamsv4_gloves", "type": "bool", "default": "false", "description": "Apply chams to gloves."},
+        {"name": "chamsv4_weapons", "type": "bool", "default": "false", "description": "Apply chams to dropped weapons."},
+        {"name": "chamsv4_team", "type": "bool", "default": "false", "description": "Apply chams to teammates."}
+      ]
+    },
+    {
+      "name": "Skin Changer",
+      "variables": [
+        {"name": "sc_enabled", "type": "bool", "default": "false", "description": "Master toggle for skin changer."},
+        {"name": "sc_selected_knife", "type": "int", "default": "0", "description": "Selected knife skin index."},
+        {"name": "sc_selected_glove_type", "type": "int", "default": "-1", "description": "Selected glove type index."},
+        {"name": "sc_selected_glove_skin", "type": "int", "default": "-1", "description": "Selected glove skin index."},
+        {"name": "sc_selected_music_kit", "type": "int", "default": "-1", "description": "Selected music kit index."},
+        {"name": "sc_selected_agent_ct", "type": "int", "default": "-1", "description": "Selected CT agent index."},
+        {"name": "sc_selected_agent_t", "type": "int", "default": "-1", "description": "Selected T agent index."}
+      ]
+    },
+    {
+      "name": "Misc",
+      "variables": [
+        {"name": "bunnyhop_enabled", "type": "bool", "default": "false", "description": "Automatic bunny hop when holding space."},
+        {"name": "hitsound_enabled", "type": "bool", "default": "false", "description": "Play custom sound on hit."},
+        {"name": "hitmarker_enabled", "type": "bool", "default": "false", "description": "Draw screen hitmarker on hit."},
+        {"name": "thirdperson_enabled", "type": "bool", "default": "false", "description": "Enable third-person camera view."},
+        {"name": "antiflash_enabled", "type": "bool", "default": "false", "description": "Reduce or remove flashbang blindness."},
+        {"name": "visuals_fov_enabled", "type": "bool", "default": "false", "description": "Override field of view."},
+        {"name": "visuals_fov", "type": "float", "default": "90.0", "description": "Desired FOV value."},
+        {"name": "chatspam_enabled", "type": "bool", "default": "false", "description": "Enable automatic chat spam."},
+        {"name": "autoaccept_enabled", "type": "bool", "default": "false", "description": "Auto-accept matchmaking matches."},
+        {"name": "rcs_enabled", "type": "bool", "default": "false", "description": "Enable recoil control system."},
+        {"name": "rcs_amount", "type": "float", "default": "0.5", "description": "RCS compensation strength."}
+      ]
+    },
+    {
+      "name": "Console Output",
+      "variables": [
+        {"name": "print", "type": "string", "default": "\"\"", "description": "Print a message to the Lua console output. Usage: print = \"Hello\""}
+      ]
+    }
+  ]
+}

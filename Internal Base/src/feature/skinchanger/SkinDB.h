@@ -1,0 +1,343 @@
+#pragma once
+#include <string>
+#include <vector>
+#include <map>
+#include <unordered_map>
+#include <Windows.h>
+#include <winhttp.h>
+#include <algorithm>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <shlobj.h>
+#include "SkinData.h"
+#include "../../ext/nlohmann/json.hpp"
+
+#pragma comment(lib, "winhttp.lib")
+
+class CSkinDB
+{
+private:
+    std::vector<SkinInfo_t> knifeSkins;
+    std::vector<SkinInfo_t> gloveSkins;
+    std::vector<SkinInfo_t> weaponSkins;
+    bool m_bDumped = false;
+    std::string m_status = "Loading";
+
+    std::vector<std::string> knifeTypes = {
+        "Bayonet", "Classic Knife", "Flip Knife", "Gut Knife",
+        "Karambit", "M9 Bayonet", "Huntsman Knife", "Falchion Knife",
+        "Bowie Knife", "Butterfly Knife", "Shadow Daggers", "Paracord Knife",
+        "Survival Knife", "Ursus Knife", "Navaja Knife", "Nomad Knife",
+        "Stiletto Knife", "Talon Knife", "Skeleton Knife", "Kukri Knife"
+    };
+
+    std::vector<std::string> gloveTypeNames = {
+        "Bloodhound Gloves", "Broken Fang Gloves",
+        "Driver Gloves", "Hand Wraps",
+        "Hydra Gloves", "Moto Gloves",
+        "Specialist Gloves", "Sport Gloves"
+    };
+
+    WeaponsEnum GetDefPerString(const std::string& name)
+    {
+        static const std::unordered_map<std::string, WeaponsEnum> weaponMap = {
+            {"AK-47", WEP_Ak47},
+            {"AUG", WEP_Aug},
+            {"AWP", WEP_Awp},
+            {"PP-Bizon", WEP_Bizon},
+            {"CZ75-Auto", WEP_Cz75A},
+            {"Desert Eagle", WEP_Deagle},
+            {"Dual Berettas", WEP_Elite},
+            {"FAMAS", WEP_Famas},
+            {"Five-SeveN", WEP_FiveSeven},
+            {"G3SG1", WEP_G3Sg1},
+            {"Galil AR", WEP_Galil},
+            {"Glock-18", WEP_Glock},
+            {"P2000", WEP_P2000},
+            {"M249", WEP_M249},
+            {"M4A1-S", WEP_M4A1S},
+            {"M4A4", WEP_M4A4},
+            {"MAC-10", WEP_Mac10},
+            {"MAG-7", WEP_Mag7},
+            {"MP5-SD", WEP_Mp5SD},
+            {"MP7", WEP_Mp7},
+            {"MP9", WEP_Mp9},
+            {"Negev", WEP_Negev},
+            {"Nova", WEP_Nova},
+            {"XM1014", WEP_Xm1014},
+            {"USP-S", WEP_UspS},
+            {"Tec-9", WEP_Tec9},
+            {"SSG 08", WEP_Ssg08},
+            {"SG 553", WEP_Sg556},
+            {"SCAR-20", WEP_Scar20},
+            {"Sawed-Off", WEP_Sawedoff},
+            {"R8 Revolver", WEP_Revolver},
+            {"P90", WEP_P90},
+            {"P250", WEP_P250},
+            {"UMP-45", WEP_Ump45},
+            {"Zeus x27", WEP_Zeus},
+        };
+
+        for (const auto& [key, value] : weaponMap)
+        {
+            if (name.find(key) != std::string::npos)
+                return value;
+        }
+        return WEP_NONE;
+    }
+
+    WeaponsEnum GetDefFromSkinJson(const nlohmann::json& skin)
+    {
+        if (skin.find("weapon") != skin.end() && skin["weapon"].is_object()) {
+            const auto& weaponObj = skin["weapon"];
+            if (weaponObj.find("weapon_id") != weaponObj.end() && weaponObj["weapon_id"].is_number_integer()) {
+                int weaponId = weaponObj["weapon_id"].get<int>();
+                if (weaponId > 0)
+                    return static_cast<WeaponsEnum>(weaponId);
+            }
+            if (weaponObj.find("name") != weaponObj.end() && weaponObj["name"].is_string()) {
+                WeaponsEnum byWeaponName = GetDefPerString(weaponObj["name"].get<std::string>());
+                if (byWeaponName != WEP_NONE)
+                    return byWeaponName;
+            }
+        }
+
+        return GetDefPerString(GetStringSafe(skin, "name"));
+    }
+
+    
+    std::string DownloadString(const wchar_t* host, const wchar_t* path)
+    {
+        std::string result;
+        HINTERNET hSession = WinHttpOpen(L"SkinChanger/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+        if (!hSession) return result;
+        WinHttpSetTimeouts(hSession, 3000, 3000, 5000, 8000);
+
+        HINTERNET hConnect = WinHttpConnect(hSession, host, INTERNET_DEFAULT_HTTPS_PORT, 0);
+        if (!hConnect) { WinHttpCloseHandle(hSession); return result; }
+
+        HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"GET", path, NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
+        if (!hRequest) { WinHttpCloseHandle(hConnect); WinHttpCloseHandle(hSession); return result; }
+
+        if (WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) &&
+            WinHttpReceiveResponse(hRequest, NULL))
+        {
+            DWORD dwSize = 0;
+            DWORD dwDownloaded = 0;
+            do
+            {
+                dwSize = 0;
+                WinHttpQueryDataAvailable(hRequest, &dwSize);
+                if (dwSize == 0) break;
+
+                char* buffer = new char[dwSize + 1];
+                ZeroMemory(buffer, dwSize + 1);
+                WinHttpReadData(hRequest, buffer, dwSize, &dwDownloaded);
+                result.append(buffer, dwDownloaded);
+                delete[] buffer;
+            } while (dwSize > 0);
+        }
+
+        WinHttpCloseHandle(hRequest);
+        WinHttpCloseHandle(hConnect);
+        WinHttpCloseHandle(hSession);
+        return result;
+    }
+
+    std::string GetCachePath()
+    {
+        char path[MAX_PATH];
+        if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_PERSONAL, NULL, 0, path))) {
+            std::string dir = std::string(path) + "\\GhostWeave";
+            CreateDirectoryA(dir.c_str(), nullptr);
+            return dir + "\\skins_cache.json";
+        }
+        return "";
+    }
+
+    std::string ReadCache()
+    {
+        std::string path = GetCachePath();
+        if (path.empty()) return "";
+
+        std::ifstream in(path, std::ios::binary);
+        if (!in.is_open()) return "";
+
+        std::stringstream buffer;
+        buffer << in.rdbuf();
+        return buffer.str();
+    }
+
+    void WriteCache(const std::string& content)
+    {
+        std::string path = GetCachePath();
+        if (path.empty() || content.empty()) return;
+
+        std::ofstream out(path, std::ios::binary | std::ios::trunc);
+        if (!out.is_open()) return;
+        out << content;
+    }
+
+    int GetPaintIndexSafe(const nlohmann::json& skin)
+    {
+        if (skin.find("paint_index") == skin.end()) return 0;
+        if (skin["paint_index"].is_number_integer()) return skin["paint_index"].get<int>();
+        if (skin["paint_index"].is_string()) {
+            try { return std::stoi(skin["paint_index"].get<std::string>()); }
+            catch (...) { return 0; }
+        }
+        return 0;
+    }
+
+    std::string GetStringSafe(const nlohmann::json& j, const std::string& key)
+    {
+        if (j.find(key) == j.end()) return "";
+        if (j[key].is_string()) return j[key].get<std::string>();
+        if (j[key].is_object() && j[key].find("en") != j[key].end()) return j[key]["en"].get<std::string>();
+        return "";
+    }
+
+    int GetRarityIdSafe(const nlohmann::json& skin)
+    {
+        if (skin.find("rarity") == skin.end()) return 1;
+        auto& r = skin["rarity"];
+        if (r.is_object() && r.find("id") != r.end()) {
+            if (r["id"].is_string()) {
+                std::string idStr = r["id"].get<std::string>();
+                if (idStr.find("contraband") != std::string::npos) return 7;
+                if (idStr.find("ancient") != std::string::npos) return 6;
+                if (idStr.find("legendary") != std::string::npos) return 5;
+                if (idStr.find("mythical") != std::string::npos) return 4;
+                if (idStr.find("rare") != std::string::npos) return 3;
+                if (idStr.find("uncommon") != std::string::npos) return 2;
+                if (idStr.find("common") != std::string::npos) return 1;
+                return 1;
+            }
+            if (r["id"].is_number_integer()) return r["id"].get<int>();
+        }
+        return 1;
+    }
+
+public:
+    bool IsDumped() const { return m_bDumped; }
+    const std::string& GetStatus() const { return m_status; }
+
+    bool ParseDump(const std::string& readBuffer)
+    {
+        if (readBuffer.empty()) return false;
+
+        try
+        {
+            auto jsonData = nlohmann::json::parse(readBuffer);
+            std::vector<SkinInfo_t> parsedKnifeSkins;
+            std::vector<SkinInfo_t> parsedGloveSkins;
+            std::vector<SkinInfo_t> parsedWeaponSkins;
+
+            for (auto& skin : jsonData)
+            {
+                SkinInfo_t info;
+                info.paintKit = GetPaintIndexSafe(skin);
+                info.name = GetStringSafe(skin, "name");
+                info.weaponType = GetDefFromSkinJson(skin);
+                info.rarity = GetRarityIdSafe(skin);
+                info.image_url = GetStringSafe(skin, "image");
+
+                bool isKnife = false;
+                bool isGlove = false;
+
+                for (auto& k : knifeTypes)
+                    if (info.name.find(k) != std::string::npos) { isKnife = true; break; }
+
+                for (auto& g : gloveTypeNames)
+                    if (info.name.find(g) != std::string::npos) { isGlove = true; break; }
+
+                if (isKnife) { parsedKnifeSkins.push_back(info); continue; }
+                if (isGlove) { parsedGloveSkins.push_back(info); continue; }
+
+                parsedWeaponSkins.push_back(info);
+            }
+
+            if (parsedKnifeSkins.empty() && parsedGloveSkins.empty() && parsedWeaponSkins.empty())
+                return false;
+
+            knifeSkins = parsedKnifeSkins;
+            gloveSkins = parsedGloveSkins;
+            weaponSkins = parsedWeaponSkins;
+            m_bDumped = true;
+            m_status = "Loaded";
+            return true;
+        }
+        catch (...) {
+            return false;
+        }
+    }
+
+    void Dump()
+    {
+        if (ParseDump(ReadCache()))
+            m_status = "Loaded from cache";
+
+        const wchar_t* hosts[] = {
+            L"bymykel.github.io",
+            L"raw.githubusercontent.com"
+        };
+        const wchar_t* paths[] = {
+            L"/CSGO-API/api/en/skins.json",
+            L"/ByMykel/CSGO-API/main/public/api/en/skins.json"
+        };
+
+        for (int i = 0; i < 2; ++i)
+        {
+            m_status = "Downloading";
+            std::string readBuffer = DownloadString(hosts[i], paths[i]);
+            if (ParseDump(readBuffer))
+            {
+                WriteCache(readBuffer);
+                return;
+            }
+        }
+
+        if (!m_bDumped)
+            m_status = "Skin database unavailable";
+    }
+
+    std::vector<SkinInfo_t> GetWeaponSkins(WeaponsEnum type)
+    {
+        std::vector<SkinInfo_t> results;
+        results.push_back(SkinInfo_t{ 0, WEP_NONE, "Vanilla", 0.001f, 0, -1, 1 });
+
+        if (type == WEP_NONE) return results;
+
+        for (const auto& skin : weaponSkins)
+        {
+            if (skin.weaponType != type) continue;
+            results.push_back(skin);
+        }
+
+        
+        std::sort(results.begin() + 1, results.end(), [](const SkinInfo_t& a, const SkinInfo_t& b) {
+            return a.rarity > b.rarity;
+        });
+
+        return results;
+    }
+
+    std::vector<SkinInfo_t> GetGloveSkins(const std::string& gloveType)
+    {
+        std::vector<SkinInfo_t> results;
+        if (gloveType.empty()) return results;
+
+        for (const auto& skin : gloveSkins)
+        {
+            if (skin.name.find(gloveType) != std::string::npos)
+                results.push_back(skin);
+        }
+        return results;
+    }
+
+    std::vector<SkinInfo_t>& GetKnifeSkins() { return knifeSkins; }
+};
+
+
+inline CSkinDB* g_SkinDB = nullptr;
